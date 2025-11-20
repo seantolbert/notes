@@ -1,25 +1,25 @@
 import { openPlannerDatabase } from '@/lib/db/indexedDbClient';
 import { enqueueOutbox, processOutbox } from '@/lib/db/outbox';
-import type { Task, TaskRow } from '@/lib/models/task';
-import { taskFromRow, taskToRow } from '@/lib/models/task';
+import type { DailyPage, DailyPageRow } from '@/lib/models/dailyPage';
+import { dailyPageFromRow, dailyPageToRow } from '@/lib/models/dailyPage';
 import { getSupabaseClient } from '@/lib/supabase/client';
 
-const STORE_NAME = 'tasks';
-const ensureUserId = (userId?: string) => userId ?? 'local-user'; // TODO: replace with real auth provider.
+const STORE_NAME = 'dailyPages';
+const ensureUserId = (userId?: string) => userId ?? 'local-user'; // TODO: swap with authenticated user.
 
 /**
- * Create a task locally first, then push to Supabase.
+ * Create a daily page locally first, then insert to Supabase.
  */
-export async function create(task: Task, userId?: string): Promise<Task> {
+export async function create(page: DailyPage, userId?: string): Promise<DailyPage> {
   const db = await openPlannerDatabase();
   const supabase = getSupabaseClient();
   const uid = ensureUserId(userId);
-  const prepared: Task = {
-    ...task,
-    id: task.id ?? taskToRow(task, uid).id,
+  const prepared: DailyPage = {
+    ...page,
+    id: page.id ?? dailyPageToRow(page, uid).id,
     userId: uid,
-    tags: task.tags ?? [],
-    createdAt: task.createdAt ?? new Date().toISOString(),
+    taskIds: page.taskIds ?? [],
+    createdAt: page.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
 
@@ -27,10 +27,10 @@ export async function create(task: Task, userId?: string): Promise<Task> {
     await db.put(STORE_NAME, prepared);
   }
 
-  const row = taskToRow(prepared, uid);
+  const row = dailyPageToRow(prepared, uid);
   if (supabase) {
     void supabase
-      .from('tasks')
+      .from('daily_pages')
       .insert([row])
       .catch(async () => {
         await enqueueOutbox({ table: STORE_NAME, operation: 'insert', payload: row, userId: uid });
@@ -43,17 +43,17 @@ export async function create(task: Task, userId?: string): Promise<Task> {
 }
 
 /**
- * Update a task locally and then push upstream.
+ * Update a daily page locally, then push upstream.
  */
-export async function update(task: Task, userId?: string): Promise<Task> {
+export async function update(page: DailyPage, userId?: string): Promise<DailyPage> {
   const db = await openPlannerDatabase();
   const supabase = getSupabaseClient();
   const uid = ensureUserId(userId);
-  const prepared: Task = {
-    ...task,
+  const prepared: DailyPage = {
+    ...page,
     userId: uid,
-    tags: task.tags ?? [],
-    createdAt: task.createdAt ?? new Date().toISOString(),
+    taskIds: page.taskIds ?? [],
+    createdAt: page.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
 
@@ -62,10 +62,10 @@ export async function update(task: Task, userId?: string): Promise<Task> {
   }
 
   if (prepared.id) {
-    const row = taskToRow(prepared, uid);
+    const row = dailyPageToRow(prepared, uid);
     if (supabase) {
       void supabase
-        .from('tasks')
+        .from('daily_pages')
         .update(row)
         .eq('id', prepared.id)
         .eq('user_id', uid)
@@ -81,9 +81,9 @@ export async function update(task: Task, userId?: string): Promise<Task> {
 }
 
 /**
- * Delete a task locally and upstream.
+ * Delete a daily page locally and remotely.
  */
-export async function deleteTask(id: string, userId?: string): Promise<void> {
+export async function deleteDailyPage(id: string, userId?: string): Promise<void> {
   const db = await openPlannerDatabase();
   const supabase = getSupabaseClient();
   const uid = ensureUserId(userId);
@@ -94,7 +94,7 @@ export async function deleteTask(id: string, userId?: string): Promise<void> {
 
   if (supabase) {
     void supabase
-      .from('tasks')
+      .from('daily_pages')
       .delete()
       .eq('id', id)
       .eq('user_id', uid)
@@ -107,25 +107,25 @@ export async function deleteTask(id: string, userId?: string): Promise<void> {
 }
 
 /**
- * Fetch a task from local cache.
+ * Get a daily page from the local cache.
  */
-export async function get(id: string): Promise<Task | null> {
+export async function get(id: string): Promise<DailyPage | null> {
   const db = await openPlannerDatabase();
   if (!db) return null;
   return (await db.get(STORE_NAME, id)) ?? null;
 }
 
 /**
- * List tasks from local cache.
+ * List daily pages from the local cache.
  */
-export async function list(): Promise<Task[]> {
+export async function list(): Promise<DailyPage[]> {
   const db = await openPlannerDatabase();
   if (!db) return [];
   return db.getAll(STORE_NAME);
 }
 
 /**
- * Pull latest tasks from Supabase and merge into IndexedDB with last-write-wins.
+ * Pull remote daily pages and merge into IndexedDB using updated_at for conflict resolution.
  */
 export async function sync(userId?: string): Promise<void> {
   const db = await openPlannerDatabase();
@@ -137,19 +137,19 @@ export async function sync(userId?: string): Promise<void> {
   await processOutbox(STORE_NAME, async (entry) => {
     if (!supabase) return;
     if (entry.operation === 'delete') {
-      await supabase.from('tasks').delete().eq('id', entry.payload.id as string).eq('user_id', uid);
+      await supabase.from('daily_pages').delete().eq('id', entry.payload.id as string).eq('user_id', uid);
     } else if (entry.operation === 'insert') {
-      await supabase.from('tasks').insert([entry.payload]);
+      await supabase.from('daily_pages').insert([entry.payload]);
     } else if (entry.operation === 'update') {
-      await supabase.from('tasks').update(entry.payload).eq('id', entry.payload.id as string).eq('user_id', uid);
+      await supabase.from('daily_pages').update(entry.payload).eq('id', entry.payload.id as string).eq('user_id', uid);
     }
   });
 
-  const { data, error } = await supabase.from('tasks').select('*').eq('user_id', uid);
+  const { data, error } = await supabase.from('daily_pages').select('*').eq('user_id', uid);
   if (error || !data) return;
 
-  for (const row of data as TaskRow[]) {
-    const remote = taskFromRow(row);
+  for (const row of data as DailyPageRow[]) {
+    const remote = dailyPageFromRow(row);
     const local = await db.get(STORE_NAME, remote.id!);
     const localUpdated = local?.updatedAt ? new Date(local.updatedAt).getTime() : 0;
     const remoteUpdated = remote.updatedAt ? new Date(remote.updatedAt).getTime() : 0;

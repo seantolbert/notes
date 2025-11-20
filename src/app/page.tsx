@@ -1,83 +1,127 @@
-import { CalendarStrip } from '@/components/calendar/CalendarStrip';
-import { DayTimeline } from '@/components/calendar/DayTimeline';
-import { NoteList } from '@/components/notes/NoteList';
-import { TaskList } from '@/components/tasks/TaskList';
-import type { Event } from '@/lib/models/event';
-import type { Note } from '@/lib/models/note';
-import type { Task } from '@/lib/models/task';
-import { formatShortDate, toIsoDate } from '@/lib/utils/dates';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const today = new Date();
-const todayIso = toIsoDate(today);
+import { EventCard } from '@/components/calendar/EventCard';
+import { NoteCard } from '@/components/notes/NoteCard';
+import { TaskItem } from '@/components/tasks/TaskItem';
+import { TaskQuickAdd } from '@/components/tasks/TaskQuickAdd';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEvents } from '@/lib/hooks/useEvents';
+import { useNotes } from '@/lib/hooks/useNotes';
+import { useTasks } from '@/lib/hooks/useTasks';
+import { useTodayPlan } from '@/lib/hooks/useTodayPlan';
+import { getToday } from '@/lib/utils/dates';
 
-const SAMPLE_NOTES: Note[] = [
-  {
-    id: 'note-1',
-    title: 'Capture ideas for planner',
-    content: 'Draft unified planner UX and data model.',
-    excerpt: 'Draft unified planner UX and data model.',
-    tags: ['planning'],
-    createdAt: todayIso,
-    updatedAt: todayIso
-  }
-];
+const today = getToday();
 
-const SAMPLE_TASKS: Task[] = [
-  {
-    id: 'task-1',
-    title: 'Wire placeholder pages',
-    status: 'pending',
-    createdAt: todayIso,
-    updatedAt: todayIso
-  }
-];
-
-const SAMPLE_EVENTS: Event[] = [
-  {
-    id: 'event-1',
-    title: 'Plan architecture',
-    description: 'Sketch schema for notes, tasks, and calendar.',
-    start: `${todayIso}T09:00:00.000Z`,
-    end: `${todayIso}T10:00:00.000Z`,
-    createdAt: todayIso,
-    updatedAt: todayIso
-  }
-];
+const listVariants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: { opacity: 1, y: 0 }
+};
 
 export default function HomePage() {
+  const todayPlan = useTodayPlan();
+  const tasks = useTasks();
+  const events = useEvents();
+  const notes = useNotes();
+
+  const handleSync = async () => {
+    await Promise.all([tasks.sync(), events.sync(), notes.sync(), todayPlan.sync()]);
+  };
+
+  const todayNotes = notes.data.filter((note) => (note.createdAt ?? '').startsWith(today));
+
+  const handleQuickAdd = async (title: string) => {
+    await tasks.create({
+      title,
+      status: 'pending',
+      tags: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  };
+
   return (
-    <div className="space-y-6">
-      <section className="space-y-2">
-        <h2 className="text-xl font-semibold">Today</h2>
-        <p className="text-sm text-muted-foreground">
-          Placeholder overview for {formatShortDate(today)}. TODO: replace with live plan summary.
-        </p>
-        <CalendarStrip days={[{ date: todayIso, events: SAMPLE_EVENTS }]} />
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Notes</h3>
-          <p className="text-xs text-muted-foreground">Unify quick scratch pad and daily pages</p>
+    <div className="mx-auto flex min-h-screen max-w-[480px] flex-col gap-6 px-4 py-4">
+      <header className="flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Today</p>
+          <h1 className="text-xl font-semibold">{today}</h1>
+          <p className="text-xs text-muted-foreground">
+            {todayPlan.data.tasks.length} tasks • {todayPlan.data.events.length} events •{' '}
+            {todayPlan.data.notes.length} notes
+          </p>
         </div>
-        <NoteList notes={SAMPLE_NOTES} />
-      </section>
+        <Button size="sm" variant="outline" onClick={handleSync}>
+          Sync
+        </Button>
+      </header>
 
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Tasks</h3>
-          <p className="text-xs text-muted-foreground">TODO: pull from inbox and daily focus</p>
-        </div>
-        <TaskList tasks={SAMPLE_TASKS} />
-      </section>
+      {/* TODO: add AI daily summary surface here once available. */}
 
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Schedule</h3>
-          <p className="text-xs text-muted-foreground">Upcoming events for the day</p>
-        </div>
-        <DayTimeline events={SAMPLE_EVENTS} />
-      </section>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Today&apos;s Events</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <AnimatePresence initial={false}>
+            {events.data.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No events scheduled. Add calendar sources to see more.</p>
+            ) : (
+              events.data.map((event) => (
+                <motion.div key={event.id} initial="hidden" animate="visible" exit="hidden" variants={listVariants}>
+                  <EventCard event={event} />
+                </motion.div>
+              ))
+            )}
+          </AnimatePresence>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Today&apos;s Tasks</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <TaskQuickAdd onAdd={handleQuickAdd} />
+          <div className="space-y-2">
+            <AnimatePresence initial={false}>
+              {tasks.data.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No tasks for today. Capture one above to get started.
+                </p>
+              ) : (
+                tasks.data.map((task) => (
+                  <motion.div key={task.id} initial="hidden" animate="visible" exit="hidden" variants={listVariants}>
+                    <TaskItem task={task} />
+                  </motion.div>
+                ))
+              )}
+            </AnimatePresence>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Today&apos;s Notes</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <AnimatePresence initial={false}>
+            {todayNotes.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No notes linked to today. Create a note to capture thoughts.
+              </p>
+            ) : (
+              todayNotes.map((note) => (
+                <motion.div key={note.id} initial="hidden" animate="visible" exit="hidden" variants={listVariants}>
+                  <NoteCard note={note} />
+                </motion.div>
+              ))
+            )}
+          </AnimatePresence>
+        </CardContent>
+      </Card>
     </div>
   );
 }

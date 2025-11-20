@@ -1,16 +1,42 @@
-export function toIsoDate(date: Date | string): string {
-  if (typeof date === 'string') return date;
-  return date.toISOString().slice(0, 10);
+/**
+ * Return today's date as YYYY-MM-DD (local time).
+ */
+export function getToday(): string {
+  return toISODate(new Date());
 }
 
-export function formatShortDate(date: Date | string, locale = 'en-US') {
-  return new Date(date).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+/**
+ * Compare two YYYY-MM-DD strings for same calendar day.
+ */
+export function isSameDay(a: string, b: string): boolean {
+  return a === b;
 }
 
-export function startOfTodayIso() {
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  return now.toISOString();
+/**
+ * Convert a Date to a YYYY-MM-DD string in local time.
+ * Keeps parity with Supabase date columns.
+ */
+export function toISODate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
-// TODO: add time zone handling and recurring date helpers.
+/**
+ * Start-of-day Date object (local time, 00:00:00.000).
+ */
+export function startOfDay(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/**
+ * End-of-day Date object (local time, 23:59:59.999).
+ */
+export function endOfDay(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
