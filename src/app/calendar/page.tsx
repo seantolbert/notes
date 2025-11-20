@@ -10,8 +10,9 @@ const SAMPLE_EVENTS: Event[] = [
   {
     id: 'event-2',
     title: 'Inbox triage',
-    start: `${todayIso}T12:00:00.000Z`,
-    end: `${todayIso}T12:30:00.000Z`,
+    startAt: `${todayIso}T12:00:00.000Z`,
+    endAt: `${todayIso}T12:30:00.000Z`,
+    tags: [],
     description: 'Sort captured notes and tasks.'
   }
 ];

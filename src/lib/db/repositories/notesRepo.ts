@@ -30,14 +30,24 @@ export async function create(note: Note, userId?: string): Promise<Note> {
 
   const row = noteToRow(prepared, uid);
   if (supabase) {
-    void supabase
-      .from('notes')
-      .insert([row])
-      .catch(async () => {
-        await enqueueOutbox({ table: STORE_NAME, operation: 'insert', payload: row, userId: uid });
+    try {
+      const { error } = await supabase.from('notes').insert([row]);
+      if (error) throw error;
+    } catch {
+      await enqueueOutbox({
+        table: STORE_NAME,
+        operation: 'insert',
+        payload: row,
+        userId: uid
       });
+    }
   } else {
-    await enqueueOutbox({ table: STORE_NAME, operation: 'insert', payload: row, userId: uid });
+    await enqueueOutbox({
+      table: STORE_NAME,
+      operation: 'insert',
+      payload: row,
+      userId: uid
+    });
   }
 
   return prepared;
@@ -65,16 +75,28 @@ export async function update(note: Note, userId?: string): Promise<Note> {
   if (prepared.id) {
     const row = noteToRow(prepared, uid);
     if (supabase) {
-      void supabase
-        .from('notes')
-        .update(row)
-        .eq('id', prepared.id)
-        .eq('user_id', uid)
-        .catch(async () => {
-          await enqueueOutbox({ table: STORE_NAME, operation: 'update', payload: row, userId: uid });
+      try {
+        const { error } = await supabase
+          .from('notes')
+          .update(row)
+          .eq('id', prepared.id)
+          .eq('user_id', uid);
+        if (error) throw error;
+      } catch {
+        await enqueueOutbox({
+          table: STORE_NAME,
+          operation: 'update',
+          payload: row,
+          userId: uid
         });
+      }
     } else {
-      await enqueueOutbox({ table: STORE_NAME, operation: 'update', payload: row, userId: uid });
+      await enqueueOutbox({
+        table: STORE_NAME,
+        operation: 'update',
+        payload: row,
+        userId: uid
+      });
     }
   }
 
@@ -94,16 +116,24 @@ export async function deleteNote(id: string, userId?: string): Promise<void> {
   }
 
   if (supabase) {
-    void supabase
-      .from('notes')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', uid)
-      .catch(async () => {
-        await enqueueOutbox({ table: STORE_NAME, operation: 'delete', payload: { id }, userId: uid });
+    try {
+      const { error } = await supabase.from('notes').delete().eq('id', id).eq('user_id', uid);
+      if (error) throw error;
+    } catch {
+      await enqueueOutbox({
+        table: STORE_NAME,
+        operation: 'delete',
+        payload: { id },
+        userId: uid
       });
+    }
   } else {
-    await enqueueOutbox({ table: STORE_NAME, operation: 'delete', payload: { id }, userId: uid });
+    await enqueueOutbox({
+      table: STORE_NAME,
+      operation: 'delete',
+      payload: { id },
+      userId: uid
+    });
   }
 }
 
@@ -138,12 +168,13 @@ export async function sync(userId?: string): Promise<void> {
   if (!supabase) return;
   await processOutbox(STORE_NAME, async (entry) => {
     if (!supabase) return;
-    if (entry.operation === 'delete') {
-      await supabase.from('notes').delete().eq('id', entry.payload.id as string).eq('user_id', uid);
+    const payload = entry.payload as { id?: string };
+    if (entry.operation === 'delete' && payload.id) {
+      await supabase.from('notes').delete().eq('id', payload.id).eq('user_id', uid);
     } else if (entry.operation === 'insert') {
       await supabase.from('notes').insert([entry.payload]);
-    } else if (entry.operation === 'update') {
-      await supabase.from('notes').update(entry.payload).eq('id', entry.payload.id as string).eq('user_id', uid);
+    } else if (entry.operation === 'update' && payload.id) {
+      await supabase.from('notes').update(entry.payload).eq('id', payload.id).eq('user_id', uid);
     }
   });
 

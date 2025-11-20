@@ -7,6 +7,7 @@ const SAMPLE_NOTES: Note[] = [
     title: 'Daily log',
     content: 'Capture highlights from today',
     excerpt: 'Capture highlights from today',
+    tags: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   }

@@ -1,9 +1,9 @@
 import type { Event } from '@/lib/models/event';
 import type { Note } from '@/lib/models/note';
 import type { Task } from '@/lib/models/task';
-import { listEvents } from '@/lib/db/repositories/eventsRepo';
-import { listNotes } from '@/lib/db/repositories/notesRepo';
-import { listTasks } from '@/lib/db/repositories/tasksRepo';
+import { list } from '@/lib/db/repositories/eventsRepo';
+import { list as listNotes } from '@/lib/db/repositories/notesRepo';
+import { list as listTasks } from '@/lib/db/repositories/tasksRepo';
 
 export interface TodayPlan {
   notes: Note[];
@@ -13,6 +13,6 @@ export interface TodayPlan {
 
 export async function loadTodayPlan(): Promise<TodayPlan> {
   // TODO: scope to the active date and merge timeline logic.
-  const [notes, tasks, events] = await Promise.all([listNotes(), listTasks(), listEvents()]);
+  const [notes, tasks, events] = await Promise.all([listNotes(), listTasks(), list()]);
   return { notes, tasks, events };
 }

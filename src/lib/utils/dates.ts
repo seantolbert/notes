@@ -40,3 +40,18 @@ export function endOfDay(date: Date): Date {
   d.setHours(23, 59, 59, 999);
   return d;
 }
+
+/**
+ * Compat helper: accept Date or string and return YYYY-MM-DD.
+ */
+export function toIsoDate(date: Date | string): string {
+  if (typeof date === 'string') return date.slice(0, 10);
+  return toISODate(date);
+}
+
+/**
+ * Format a short human-readable date (e.g., "Jan 5").
+ */
+export function formatShortDate(date: Date | string, locale = 'en-US') {
+  return new Date(date).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+}

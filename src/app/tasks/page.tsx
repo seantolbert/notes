@@ -1,3 +1,5 @@
+'use client';
+
 import { TaskList } from '@/components/tasks/TaskList';
 import { TaskQuickAdd } from '@/components/tasks/TaskQuickAdd';
 import type { Task } from '@/lib/models/task';
@@ -12,6 +14,7 @@ const SAMPLE_TASKS: Task[] = [
     description: 'Feed from repo once available.',
     status: 'pending',
     dueAt: todayIso,
+    tags: [],
     createdAt: todayIso,
     updatedAt: todayIso
   },
@@ -19,6 +22,7 @@ const SAMPLE_TASKS: Task[] = [
     id: 'task-3',
     title: 'Draft smart capture plan',
     status: 'in_progress',
+    tags: [],
     createdAt: todayIso,
     updatedAt: todayIso
   }

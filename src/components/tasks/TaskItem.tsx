@@ -1,3 +1,5 @@
+'use client';
+
 import type { Task } from '@/lib/models/task';
 
 interface TaskItemProps {

@@ -14,7 +14,7 @@ export function DayTimeline({ events }: DayTimelineProps) {
     );
   }
 
-  const sorted = [...events].sort((a, b) => a.start.localeCompare(b.start));
+  const sorted = [...events].sort((a, b) => a.startAt.localeCompare(b.startAt));
 
   return (
     <div className="space-y-2">

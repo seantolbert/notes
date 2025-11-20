@@ -11,7 +11,7 @@ export interface OutboxEntry {
   table: string;
   operation: OutboxOperation;
   userId: string;
-  payload: Record<string, unknown>;
+  payload: unknown;
   updatedAt: string;
 }
 
